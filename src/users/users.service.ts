@@ -38,8 +38,6 @@ export class UsersService {
   // cap nhat user
   update(id: number, updateUserDto: UpdateUserDto): User | undefined {
     const userIndex = this.users.findIndex((u) => u.id === id);
-    console.log('id', id);
-    console.log('userIndex', userIndex);
     if (userIndex < 0) return undefined;
     this.users[userIndex] = {
       ...this.users[userIndex],

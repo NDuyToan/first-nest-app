@@ -4,12 +4,12 @@ import {
   Post,
   Body,
   Param,
-  BadRequestException,
   NotFoundException,
   Patch,
   Delete,
   HttpCode,
   HttpStatus,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UsersService } from './users.service';
@@ -22,11 +22,13 @@ export class UsersController {
   // POST /users - tao user moi
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
-    // validate co ban
-    if (!createUserDto.username || !createUserDto.email) {
-      throw new BadRequestException('Username va email la  bat buoc');
-    }
-    return this.userService.create(createUserDto);
+    // Dữ liệu đã được validate tự động
+
+    const user = this.userService.create(createUserDto);
+    return {
+      message: 'User created successfully',
+      data: user,
+    };
   }
 
   // GET /users - lấy tất cả users
@@ -37,8 +39,8 @@ export class UsersController {
 
   // GET /users/:id - lấy user theo ID
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    const user = this.userService.findOne(+id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    const user = this.userService.findOne(id);
     if (!user) {
       throw new NotFoundException(`User với ID ${id} không tồn tại`);
     }
@@ -46,10 +48,14 @@ export class UsersController {
     return user;
   }
 
-  // PATH /users/:id - cập nhật user
+  // PUT /users/:id - cập nhật user
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    const updatedUser = this.userService.update(+id, updateUserDto);
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    console.log('id', id);
+    const updatedUser = this.userService.update(id, updateUserDto);
 
     if (!updatedUser) {
       throw new NotFoundException(`User với ID ${id} không tồn tại`);
@@ -60,8 +66,8 @@ export class UsersController {
   // DELETE /users/:id - xoá user
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string) {
-    const isDeleted = this.userService.remove(+id);
+  remove(@Param('id', ParseIntPipe) id: number) {
+    const isDeleted = this.userService.remove(id);
 
     if (!isDeleted) {
       throw new NotFoundException(`User với ID ${id} không tồn tại`);
