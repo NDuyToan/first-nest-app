@@ -54,7 +54,6 @@ export class UsersController {
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
   ) {
-    console.log('id', id);
     const updatedUser = this.userService.update(id, updateUserDto);
 
     if (!updatedUser) {
@@ -67,10 +66,6 @@ export class UsersController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id', ParseIntPipe) id: number) {
-    const isDeleted = this.userService.remove(id);
-
-    if (!isDeleted) {
-      throw new NotFoundException(`User với ID ${id} không tồn tại`);
-    }
+    this.userService.remove(id);
   }
 }
