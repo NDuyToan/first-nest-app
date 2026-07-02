@@ -1,50 +1,63 @@
-import { ConflictException, Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { User } from './user.entity';
-import { Repository } from 'typeorm';
-import { RegisterDto } from './register.dto';
 import * as bcrypt from 'bcrypt';
+
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+
+import { JwtService } from '@nestjs/jwt';
+import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
+import { UsersService } from 'src/users/users.service';
+import { omitField } from 'src/common/utils/object.util';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(User)
-    private readonly usersRepository: Repository<User>,
+    private userService: UsersService,
+    private jwtService: JwtService,
   ) {}
 
-  async register(registerDto: RegisterDto): Promise<User> {
-    // check if email already exists
-    const existingUser = await this.usersRepository.findOne({
-      where: { email: registerDto.email },
-    });
+  async validateUser(email: string, password: string) {
+    const user = this.userService.findByEmail(email);
+    if (user && (await bcrypt.compare(password, user.password))) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...result } = user;
+      return result;
+    }
+    return null;
+  }
 
-    if (existingUser) {
-      throw new ConflictException('Email already exists');
+  async login(loginDto: LoginDto) {
+    const user = await this.validateUser(loginDto.email, loginDto.password);
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
     }
 
-    // hash password before saving
-    const hashPassword = await this.hashPassword(registerDto.password);
+    const payload = {
+      email: user.email,
+      sub: user.id,
+      role: user.role,
+    };
 
-    // create new user
-    const user = this.usersRepository.create({
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+    };
+  }
+
+  async register(registerDto: RegisterDto) {
+    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+
+    const user = this.userService.create({
       ...registerDto,
-      password: hashPassword,
+      password: hashedPassword,
     });
 
-    // save user to database
-    return await this.usersRepository.save(user);
-  }
-
-  private async hashPassword(password: string): Promise<string> {
-    const saltRounds = 10;
-    const salt = await bcrypt.genSalt(saltRounds);
-    return await bcrypt.hash(password, salt);
-  }
-
-  async validatePassword(
-    plainPassword: string,
-    hashedPassword: string,
-  ): Promise<boolean> {
-    return await bcrypt.compare(plainPassword, hashedPassword);
+    const result = omitField(user, 'password');
+    return result;
   }
 }
